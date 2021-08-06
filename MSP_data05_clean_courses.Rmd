@@ -12,12 +12,6 @@ editor_options:
   chunk_output_type: console
 ---
 
-# Header 1
-## Header 2
-### Header 3
-
-Regular text
-
 ```{r echo=TRUE, results='hide', message=FALSE}
 options(width = 80) # Set width
 #rm(list=ls())      # Remove objects from the environment
