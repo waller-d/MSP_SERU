@@ -1,0 +1,339 @@
+---
+title: "Cleaning students table"
+subtitle: "Subtitle"
+author: "David Waller"
+date: "`r format(Sys.time(), '%Y %B %d')`"
+output:
+  pdf_document:
+    toc: yes
+    number_sections: true
+    toc_depth: 5
+editor_options:
+  chunk_output_type: console
+---
+
+```{r echo=TRUE, results='hide', message=FALSE}
+options(width = 80) # Set width
+#rm(list=ls())      # Remove objects from the environment
+cat("\014")         # Clear console
+#renv::init()       # Initialize a project-local library
+#workflowr::wflow_start("project_name") # Create project_name data structure
+```
+
+```{r}
+renv::restore()
+
+library(knitr)      # for knitting Rmd files
+library(questionr)  # for working with survey data
+library(tidyverse)  # for data cleaning and plotting
+library(broom)      # for nice statistical output
+library(here)       # for easy file paths
+library(labelled)   # for working with variable labels/values
+library(naniar)     # for working with missing data
+library(assertive)  # for data validation
+library(desctable)  # for creating tables of descriptive statistics
+
+renv::snapshot()
+```
+
+```{r}
+set.seed(12345)        # Set the seed
+getwd()                # Check the working directory
+#setwd("~/Active/...")  # Set the working directory
+```
+
+```{r}
+# Function for replacing zeros with NAs
+replace.zeros <- function(v){
+  v <- replace(v,
+               v == 0,
+               NA)
+  return(v)
+}
+
+# Function for changing data type and rounding numeric data
+replace.numeric <- function(n){
+  n <- round(as.numeric(n), 4)
+  return(n)
+}
+```
+
+```{r}
+# Convert numeric data and round to 4 digits
+students_num <- c("total_incoming_credits",
+                  "incoming_credits_distributed_credits",
+                  "incoming_credits_undistributed_credits",
+                  "percent_semesters_with_payment_plan",
+                  "overall_gpa_when_leaving",
+                  "one_year_overall_gpa",
+                  "one_year_credits_earned",
+                  "one_year_credits_attempted")
+
+students[students_num] <- lapply(students[students_num], 
+                                 replace.numeric)
+
+students_num <- c("current_age",
+                  "incoming_credits_ap_credits",
+                  "incoming_credits_dual_credits",
+                  "incoming_credits_ib_credits")
+
+student_term_vars[students_num] <- lapply(student_term_vars[students_num], 
+                                          as.numeric)
+
+students_num <- c("bgrleader_flag",
+                  "summer_start_conditional_flag",
+                  "summer_start_unconditional_flag",
+                  "star_flag",
+                  "frat_sorority_flag",
+                  "mep_flag",
+                  "star_program_leader_flag")
+
+student_term_vars[students_num] <- lapply(student_term_vars[students_num], 
+                                          as.integer)
+```
+
+```{r}
+# Replace NAs with 0s
+students_num <- c("incoming_credits_ap_credits",
+                  "incoming_credits_dual_credits",
+                  "incoming_credits_ib_credits")
+
+student_term_vars[students_num] <- lapply(student_term_vars[students_num],
+                                          replace_na,
+                                          0)
+
+rm(students_num)
+```
+
+```{r}
+# Determine additional variables from term data
+student_term_vars_n <- student_term_vars %>%  
+  group_by(hashed_id) %>% 
+  summarise(age = min(current_age),
+            bgrleader_flag = max(bgrleader_flag),
+            incoming_credits_ap_credits = max(incoming_credits_ap_credits),
+            incoming_credits_dual_credits = max(incoming_credits_dual_credits),
+            incoming_credits_ib_credits = max(incoming_credits_ib_credits),
+            summer_start_conditional_flag = max(summer_start_conditional_flag),
+            star_flag = max(star_flag),
+            star_program_leader_flag = max(star_program_leader_flag),
+            frat_sorority_flag = max(frat_sorority_flag),
+            mep_flag = max(mep_flag))
+student_term_vars_c <- student_term_vars %>%
+  group_by(hashed_id) %>% 
+  filter(academic_period == min(academic_period)) %>% 
+  distinct() %>% 
+  arrange(hashed_id) %>% 
+  select(hashed_id, academic_period, state_province, cip)
+student_term_vars_c$state_province <- replace(student_term_vars_c$state_province, 
+                                              student_term_vars_c$state_province == "", 
+                                              NA)
+student_term_vars_all <- student_term_vars_n %>% 
+  left_join(student_term_vars_c, by = "hashed_id") %>% 
+  rename(id = "hashed_id") %>% 
+  distinct()
+students <- students %>% 
+  left_join(student_term_vars_all, by = "id")
+
+rm(list = c("student_term_vars_n",
+            "student_term_vars_c",
+            "student_term_vars_all"))
+```
+
+```{r}
+# Rename columns
+colnames(students) <- c("mcid",
+                        "term_enter",
+                        "term_enter_label",
+                        "admissions_pop",
+                        "admissions_pop_label",
+                        "academic_school_grouping_profile_label",
+                        "department_profile_label",
+                        "college_profile",
+                        "major_profile",
+                        "firstime_fulltime_flag",
+                        "first_gen_flag",
+                        "first_year_first_gen_flag",
+                        "sex",
+                        "race",
+                        "URM_flag",
+                        "residence",
+                        "sat_math",
+                        "sat_writing",
+                        "sat_crit_read",
+                        "sat_total",
+                        "act_english",
+                        "act_math",
+                        "act_reading",
+                        "act_science",
+                        "act_comp",
+                        "act_englwrit",
+                        "incoming_credits_flag",
+                        "hours_transfer",
+                        "hours_transfer_distributed",
+                        "hours_transfer_undistributed",
+                        "hs_zip",
+                        "hs_title_i_status",
+                        "hs_urban_centric_locale",
+                        "one_year_retention_flag",
+                        "two_year_retention_flag",
+                        "three_year_retention_flag",
+                        "three_year_graduation_flag",
+                        "four_year_graduation_flag",
+                        "five_year_graduation_flag",
+                        "six_year_graduation_flag",
+                        "graduated_flag",
+                        "percent_semesters_with_payment_plan",
+                        "scholarship_flag",
+                        "twenty_first_century_scholar_flag",
+                        "bgr_flag",
+                        "bgri_flag",
+                        "cco_internship_flag",
+                        "coop_flag",
+                        "geare_flag",
+                        "study_abroad_flag",
+                        "academic_bootcamp_flag",
+                        "mep_academic_boot_camp_flag",
+                        "early_start_flag",
+                        "summer_start_flag",
+                        "summer_finish_flag",
+                        "summer_stay_flag",
+                        "purdue_bound_flag",
+                        "purpromise_flag",
+                        "entr_flag",
+                        "bop_flag",
+                        "horizons_flag",
+                        "span_plan_flag",
+                        "learning_communities_flag",
+                        "drc_flag",
+                        "si_attended_flag",
+                        "si_student_leader_flag",
+                        "probation_flag",
+                        "student_of_concern_flag",
+                        "behavioral_intervention_flag",
+                        "expulsion_suspension_probation_warning_flag",
+                        "wiepgroup_mentoring_flag",
+                        "wieppair_mentoring_flag",
+                        "reason_for_leaving",
+                        "gpa_when_leaving",
+                        "one_year_gpa",
+                        "one_year_credits_attempted",
+                        "one_year_credits_earned",
+                        "age",
+                        "bgrleader_flag",
+                        "hours_transfer_ap",
+                        "hours_transfer_dual",
+                        "hours_transfer_ib",
+                        "summer_start_conditional_flag",
+                        "star_flag",
+                        "star_program_leader_flag",
+                        "frat_sorority_flag",
+                        "mep_flag",
+                        "term_start",
+                        "state",
+                        "cip6")
+```
+
+```{r}
+# Convert categorical variables into factors
+term_label_l <- c("Fall 2008", "Spring 2009", "Summer 2009", 
+                  "Fall 2009", "Spring 2010", "Summer 2010",
+                  "Fall 2010", "Spring 2011", "Summer 2011", 
+                  "Fall 2011", "Spring 2012", "Summer 2012",
+                  "Fall 2012", "Spring 2013", "Summer 2013", 
+                  "Fall 2013", "Spring 2014", "Summer 2014",
+                  "Fall 2014", "Spring 2015", "Summer 2015", 
+                  "Fall 2015", "Spring 2016", "Summer 2016",
+                  "Fall 2016", "Spring 2017", "Summer 2017", 
+                  "Fall 2017", "Spring 2018", "Summer 2018",
+                  "Fall 2018", "Spring 2019", "Summer 2019", 
+                  "Fall 2019", "Spring 2020")
+race_l <- c("White", "Asian", "Black or African American", "Hispanic/Latino", 
+            "2 or more races", "International", "Unknown", 
+            "Native Hawaiian or Other Pacific Islander", 
+            "American Indian or Alaska Native")
+residence_l <- c("Resident", "Non-Resident", "Foreign")
+title_i_status_l <- c("1-Eligible for Title I TAS provides no program",
+                      "2-Eligible for Title I TAS provides TAS program",
+                      "3-Eligible for Title I SWP provides TAS program",
+                      "4-Eligible for Title I SWP provides no program",
+                      "5-Eligible for Title I SWP provides SWP program",
+                      "6-Not eligible for either TAS or SWP")
+urban_centric_locale_l <- c("11-City: Large", "12-City: Mid-size", "13-City: Small", 
+                            "21-Suburb: Large", "22-Suburb: Mid-size", "23-Suburb: Small",
+                            "31-Town: Fringe", "32-Town: Distant", "33-Town: Remote",
+                            "41-Rural: Fringe", "42-Rural: Distant", "43-Rural: Remote")
+reason_for_leaving_l <- c("1. First Baccalaureate degree earned", 
+                          "2. First Professional degree earned",
+                          "3. First Associate degree earned",
+                          "4. Deceased",
+                          "6. Dropped ", 
+                          "7. Voluntarily withdrew")
+
+students$term_enter_label <- factor(students$term_enter_label, 
+                                    levels = term_label_l, 
+                                    ordered = TRUE)
+students$sex <- factor(students$sex)
+students$race <- factor(students$race, 
+                        levels = race_l, 
+                        ordered = FALSE)
+students$residence <- factor(students$residence, 
+                             levels = residence_l, 
+                             ordered = FALSE)
+students$hs_title_i_status <- factor(students$hs_title_i_status,
+                                     levels = title_i_status_l, 
+                                     ordered = FALSE)
+students$hs_urban_centric_locale <- factor(students$hs_urban_centric_locale,
+                                           levels = urban_centric_locale_l,
+                                           ordered = FALSE)
+students$reason_for_leaving <- factor(students$reason_for_leaving, 
+                                      levels = reason_for_leaving_l,
+                                      ordered = FALSE)
+
+students$term_start <- as.integer(students$term_start)
+students$firstime_fulltime_flag <- as.integer(
+  ifelse(students$firstime_fulltime_flag == "Y", 
+         1, 
+         0))
+students$URM_flag <- as.integer(
+  ifelse(students$URM_flag == "Y", 
+         1, 
+         0))
+```
+
+```{r}
+# Replace 0 test scores with NAs
+students_test <- c("sat_math",
+                   "sat_writing",
+                   "sat_crit_read",
+                   "sat_total",
+                   "act_english",
+                   "act_math",
+                   "act_reading",
+                   "act_science",
+                   "act_comp",
+                   "act_englwrit")
+
+students[students_test] <- lapply(students[students_test],
+                                  replace.zeros)
+
+rm(students_test)
+```
+
+```{r}
+# Convert term codes into midfield term codes
+students$term_enter <- ifelse(str_detect(as.character(students$term_enter / 10), 
+                                         "1$"), 
+                              as.character(students$term_enter / 10), 
+                              as.character(students$term_enter / 10 + 1))
+students$term_enter <- as.integer(students$term_enter)
+students$term_start <- ifelse(str_detect(as.character(students$term_start / 10), 
+                                         "1$"), 
+                              as.character(students$term_start / 10), 
+                              as.character(students$term_start / 10 + 1))
+students$term_start <- as.integer(students$term_start)
+```
+
+```{r}
+renv::snapshot()
+```

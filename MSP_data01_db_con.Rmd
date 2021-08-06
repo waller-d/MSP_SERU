@@ -1,0 +1,122 @@
+---
+title: "MSP Database Query"
+subtitle: "Import MSP data from SQL database"
+author: "David Waller"
+date: "`r format(Sys.time(), '%Y %B %d')`"
+output:
+  pdf_document:
+    toc: yes
+    number_sections: true
+    toc_depth: 5
+editor_options:
+  chunk_output_type: console
+---
+
+# Header 1
+## Header 2
+### Header 3
+
+Regular text
+
+```{r echo=TRUE, results='hide', message=FALSE}
+options(width = 80) # Set width
+#rm(list=ls())      # Remove objects from the environment
+cat("\014")         # Clear console
+#renv::init()       # Initialize a project-local library
+#workflowr::wflow_start("project_name") # Create project_name data structure
+```
+
+```{r}
+renv::restore()
+
+library(knitr)      # for knitting Rmd files
+library(questionr)  # for working with survey data
+library(tidyverse)  # for data cleaning and plotting
+library(broom)      # for nice statistical output
+library(here)       # for easy file paths
+library(labelled)   # for working with variable labels/values
+library(naniar)     # for working with missing data
+library(assertive)  # for data validation
+library(desctable)  # for creating tables of descriptive statistics
+library(odbc)       # for connecting to SQL databases
+
+renv::snapshot()
+```
+
+```{r}
+set.seed(12345)        # Set the seed
+getwd()                # Check the working directory
+#setwd("~/Active/...")  # Set the working directory
+```
+
+```{r}
+# Create a database connection
+con <- dbConnect(odbc(),
+                 Driver = "ODBC Driver 17 for SQL Server",
+                 Server = "itassqldev01.boilerad.purdue.edu",
+                 Database = "MSP",
+                 UID = rstudioapi::askForPassword("Database username"),
+                 PWD = rstudioapi::askForPassword("Database password"),
+                 Port = 1433)
+```
+
+```{r}
+# Query for all MSP data
+courses <- dbGetQuery(con, "SELECT * FROM courses")
+
+trms <- dbGetQuery(con, "SELECT * FROM terms")
+
+students <- dbGetQuery(con, "SELECT * FROM students")
+
+student_term_vars <- dbGetQuery(con, "SELECT hashed_id, 
+                                academic_period, 
+                                current_age, state_province, 
+                                bgrleader_flag,
+                                incoming_credits_ap_credits, 
+                                incoming_credits_dual_credits, 
+                                incoming_credits_ib_credits, 
+                                summer_start_conditional_flag, 
+                                summer_start_unconditional_flag, 
+                                star_flag, 
+                                star_program_leader_flag,
+                                frat_sorority_flag, 
+                                mep_flag, 
+                                cip
+                                FROM grades_join")
+
+highschool <- dbGetQuery(con, "SELECT * FROM highschool")
+
+grad <- dbGetQuery(con, "SELECT * FROM graduation")
+```
+
+```{r}
+renv::snapshot()
+```
+
+```{r}
+# Naming and 
+# Include numbers in script files to indicate run order
+# Scripts that create a data file should share the same name
+# Name functions with verbs and use . for spaces
+# Name objects with nouns and use _ for spaces
+# Try to work with the same data frame throughout the whole script, remove
+# unnecessary data frames
+# df_orig: original data frame that you do not edit
+# df: data frame that you work with and update 
+# df##_note <- temporary data frame you are working with, delete after it
+# replaces df
+# Use lookfor() to search for variables and labels
+# lookfor(df, "var/label name",
+#         labels = TRUE,
+#         ignore.case = TRUE,
+#         details = FALSE)
+# Use ending tags for data types in variable names
+# B: binary (should be named for the value that equals 1)
+# M: missing data indicator
+# N: negatively coded scale
+# P: positively coded scale
+# S: unchanged source variable
+# V#: version number of a modified variable
+# X: temporary variable
+# F: factor
+```

@@ -1,0 +1,153 @@
+---
+title: "Cleaning highschool table"
+subtitle: "Subtitle"
+author: "David Waller"
+date: "`r format(Sys.time(), '%Y %B %d')`"
+output:
+  pdf_document:
+    toc: yes
+    number_sections: true
+    toc_depth: 5
+editor_options:
+  chunk_output_type: console
+---
+
+```{r echo=TRUE, results='hide', message=FALSE}
+options(width = 80) # Set width
+#rm(list=ls())      # Remove objects from the environment
+cat("\014")         # Clear console
+#renv::init()       # Initialize a project-local library
+#workflowr::wflow_start("project_name") # Create project_name data structure
+```
+
+```{r}
+renv::restore()
+
+library(knitr)      # for knitting Rmd files
+library(questionr)  # for working with survey data
+library(tidyverse)  # for data cleaning and plotting
+library(broom)      # for nice statistical output
+library(here)       # for easy file paths
+library(labelled)   # for working with variable labels/values
+library(naniar)     # for working with missing data
+library(assertive)  # for data validation
+library(desctable)  # for creating tables of descriptive statistics
+
+renv::snapshot()
+```
+
+```{r}
+set.seed(12345)        # Set the seed
+getwd()                # Check the working directory
+#setwd("~/Active/...")  # Set the working directory
+```
+
+```{r}
+# Function to replace corrupt values with NAs
+replace.corrupt <- function(v, corrupt){
+  v[v %in% corrupt] <- NA
+  return(v)
+}
+```
+
+```{r}
+# Replace corrupt entries with NAs
+c1 <- sort(unique(highschool$hs_magnet_school), decreasing = TRUE)[1]
+c2 <- sort(unique(highschool$hs_magnet_school), decreasing = TRUE)[2]
+c3 <- sort(unique(highschool$hs_pupil_teacher_ratio), decreasing = TRUE)[2]
+c_corrupt <- c(c1, c2, c3)
+rm(list = c("c1","c2","c3"))
+
+hs_corrupt <- c("hs_magnet_school",
+                "hs_charter_school",
+                "hs_shared_time_school",
+                "hs_pupil_teacher_ratio",
+                "hs_full_time_equivalent_fte_teachers",
+                "hs_free_and_reduced_lunch_students",
+                "hs_free_lunch_eligible",
+                "hs_reduced_price_lunch_eligible_students",
+                "hs_direct_certification",
+                "hs_title_i_eligible_school",
+                "hs_title_i_school_status",
+                "hs_school_wide_title_i",
+                "hs_total_students_all_grades_excludes_ae",
+                "hs_male_students",
+                "hs_female_students",
+                "hs_white_students",
+                "hs_white_male",
+                "hs_white_female",
+                "hs_black_students",
+                "hs_black_male",
+                "hs_black_female",
+                "hs_hispanic_students",
+                "hs_hispanic_male",
+                "hs_hispanic_female",
+                "hs_asian_or_asian_pacific_islander_students",
+                "hs_asian_or_asian_pacific_islander_male",
+                "hs_asian_or_asian_pacific_islander_female",
+                "hs_american_indian_alaska_native_students",
+                "hs_american_indian_alaska_native_male",
+                "hs_american_indian_alaska_native_female",
+                "hs_hawaiian_nat_pacific_isl_students",
+                "hs_hawaiian_nat_pacific_isl_male",
+                "hs_hawaiian_nat_pacific_isl_female",
+                "hs_two_or_more_races_students",
+                "hs_two_or_more_races_male",
+                "hs_two_or_more_races_female")
+
+highschool[hs_corrupt] <- lapply(highschool[hs_corrupt], 
+                                 replace.corrupt, 
+                                 c_corrupt)
+
+rm(c_corrupt)
+```
+
+```{r}
+# Convert variables to numeric data type
+hs_n <- c("hs_pupil_teacher_ratio",
+          "hs_full_time_equivalent_fte_teachers",
+          "hs_free_and_reduced_lunch_students",
+          "hs_free_lunch_eligible",
+          "hs_reduced_price_lunch_eligible_students",
+          "hs_direct_certification",
+          "hs_total_students_all_grades_excludes_ae",
+          "hs_male_students",
+          "hs_female_students",
+          "hs_white_students",
+          "hs_white_male",
+          "hs_white_female",
+          "hs_black_students",
+          "hs_black_male",
+          "hs_black_female",
+          "hs_hispanic_students",
+          "hs_hispanic_male",
+          "hs_hispanic_female",
+          "hs_asian_or_asian_pacific_islander_students",
+          "hs_asian_or_asian_pacific_islander_male",
+          "hs_asian_or_asian_pacific_islander_female",
+          "hs_american_indian_alaska_native_students",
+          "hs_american_indian_alaska_native_male",
+          "hs_american_indian_alaska_native_female",
+          "hs_hawaiian_nat_pacific_isl_students",
+          "hs_hawaiian_nat_pacific_isl_male",
+          "hs_hawaiian_nat_pacific_isl_female",
+          "hs_two_or_more_races_students",
+          "hs_two_or_more_races_male",
+          "hs_two_or_more_races_female")
+
+highschool[hs_n] <- lapply(highschool[hs_n], as.numeric)
+
+rm(hs_n)
+```
+
+```{r}
+# Remove blank and duplicated entries
+highschool <- highschool %>% 
+  arrange(hashed_id, hs_agency_id_nces_assigned) %>% 
+  filter(!is.na(hs_agency_id_nces_assigned))
+highschool <- highschool[!duplicated(highschool$hashed_id), ]
+```
+
+```{r}
+renv::snapshot()
+```

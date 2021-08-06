@@ -1,0 +1,228 @@
+---
+title: "Cleaning terms table"
+subtitle: "Subtitle"
+author: "David Waller"
+date: "`r format(Sys.time(), '%Y %B %d')`"
+output:
+  pdf_document:
+    toc: yes
+    number_sections: true
+    toc_depth: 5
+editor_options:
+  chunk_output_type: console
+---
+
+```{r echo=TRUE, results='hide', message=FALSE}
+options(width = 80) # Set width
+#rm(list=ls())      # Remove objects from the environment
+cat("\014")         # Clear console
+#renv::init()       # Initialize a project-local library
+#workflowr::wflow_start("project_name") # Create project_name data structure
+```
+
+```{r}
+renv::restore()
+
+library(knitr)      # for knitting Rmd files
+library(questionr)  # for working with survey data
+library(tidyverse)  # for data cleaning and plotting
+library(broom)      # for nice statistical output
+library(here)       # for easy file paths
+library(labelled)   # for working with variable labels/values
+library(naniar)     # for working with missing data
+library(assertive)  # for data validation
+library(desctable)  # for creating tables of descriptive statistics
+
+renv::snapshot()
+```
+
+```{r}
+set.seed(12345)        # Set the seed
+getwd()                # Check the working directory
+#setwd("~/Active/...")  # Set the working directory
+```
+
+```{r}
+# Function for replacing NULL and blank values with NAs
+replace.nulls <- function(v){
+  v <- replace(v,
+               v == "NULL" | v == "",
+               NA)
+  return(v)
+}
+
+# Function for changing data type and rounding numeric data
+replace.numeric <- function(n){
+  n <- round(as.numeric(n), 4)
+  return(n)
+}
+```
+
+```{r}
+# Replace NULL values
+trms_nulls <- c("program", 
+                "college_desc",
+                "college",
+                "major",
+                "major_desc",
+                "first_concentration",
+                "first_concentration_desc",
+                "overall_gpa",
+                "overall_credits_earned",
+                "term_gpa",
+                "term_credits_earned",
+                "acad_standing_beg_desc",
+                "acad_standing_end_desc",
+                "housing_resident_hall",
+                "learning_communities_code",
+                "learning_communities_description",
+                "learning_communities_reside")
+
+trms[trms_nulls] <- lapply(trms[trms_nulls], 
+                           replace.nulls)
+
+rm(trms_nulls)
+
+trms$classification <- replace(trms$classification, 
+                               trms$classification == "Nondegree", 
+                               "Z_Nondegree")
+```
+
+```{r}
+# Convert variables to numeric data type and round to 4 digits
+trms_num <- c("fte", 
+              "overall_gpa", 
+              "overall_credits_earned", 
+              "term_gpa", 
+              "term_credits_earned")
+
+trms[trms_num] <- lapply(trms[trms_num], replace.numeric)
+
+rm(trms_num)
+```
+
+```{r}
+# Remove duplicated semesters
+trms <- trms %>% 
+  arrange(hashed_id, academic_period, classification)
+trms_index <- trms %>% 
+  distinct() %>% 
+  arrange(hashed_id, academic_period, classification) %>% 
+  select(hashed_id, academic_period)
+trms <- trms[duplicated(trms_index) == FALSE, ]
+rm(trms_index)
+
+# Test for removal of all duplicates
+trms_test <- trms %>% 
+  distinct() %>% 
+  arrange(hashed_id, academic_period, classification) %>% 
+  group_by(hashed_id, academic_period) %>% 
+  summarise(N = n()) %>% 
+  mutate(valid = ifelse(N == 1, TRUE, FALSE))
+nrow(trms_test) == sum(trms_test$valid)
+rm(trms_test)
+```
+
+```{r}
+# Rename columns
+colnames(trms) <- c("mcid",
+                    "term", 
+                    "term_label", 
+                    "semester",
+                    "classification",
+                    "level",
+                    "cip6",
+                    "program",
+                    "program_label",
+                    "college",
+                    "college_label",
+                    "major",
+                    "major_label",
+                    "first_concentration",
+                    "first_concentration_label",
+                    "department",
+                    "department_label",
+                    "academic_school_grouping",
+                    "academic_school_grouping_label",
+                    "degree",
+                    "degree_label",
+                    "full_time_part_time",
+                    "fte",
+                    "gpa_term",
+                    "hours_term",
+                    "gpa_cumul",
+                    "hours_cumul",
+                    "standing",
+                    "standing_end",
+                    "housing_resident_hall",
+                    "learning_communities_flag",
+                    "learning_communities_code",
+                    "learning_communities_label",
+                    "learning_communities_reside",
+                    "frat_sorority_flag",
+                    "coop_flag",
+                    "geare_flag",
+                    "geare_status",
+                    "study_abroad_flag",
+                    "early_start_flag",
+                    "horizons_flag",
+                    "span_plan_flag",
+                    "bop_flag",
+                    "entr_flag",
+                    "star_program_leader_flag",
+                    "summer_stay_flag",
+                    "mep_flag",
+                    "drc_flag",
+                    "osrr_flag",
+                    "probation_flag",
+                    "wiepgroup_mentoring_flag",
+                    "wieppair_mentoring_flag")
+```
+
+```{r}
+# Convert categorical variables into factors
+term_label_l <- c("Fall 2008", "Spring 2009", "Summer 2009", 
+                  "Fall 2009", "Spring 2010", "Summer 2010",
+                  "Fall 2010", "Spring 2011", "Summer 2011", 
+                  "Fall 2011", "Spring 2012", "Summer 2012",
+                  "Fall 2012", "Spring 2013", "Summer 2013", 
+                  "Fall 2013", "Spring 2014", "Summer 2014",
+                  "Fall 2014", "Spring 2015", "Summer 2015", 
+                  "Fall 2015", "Spring 2016", "Summer 2016",
+                  "Fall 2016", "Spring 2017", "Summer 2017", 
+                  "Fall 2017", "Spring 2018", "Summer 2018",
+                  "Fall 2018", "Spring 2019", "Summer 2019", 
+                  "Fall 2019", "Spring 2020")
+semester_l <- c("Fall", "Spring", "Summer")
+level_l <- c("Freshman: 0 - 14 hours", "Freshman: 15 - 29 hours",
+             "Sophomore: 30 - 44 hours", "Sophomore: 45 - 59 hours",
+             "Junior: 60 - 74 hours", "Junior: 75 - 89 hours",
+             "Senior 90 - 104 hours", "Senior 105+ hours")
+
+trms$term_label <- factor(trms$term_label, 
+                          levels = term_label_l, 
+                          ordered = TRUE)
+trms$semester <- factor(trms$semester, 
+                        levels = semester_l, 
+                        ordered = FALSE)
+trms$level_f <- factor(trms$level, 
+                       levels = level_l, 
+                       ordered = TRUE)
+trms$full_time_part_time <- factor(trms$full_time_part_time)
+trms$learning_communities_reside <- as.integer(
+  ifelse(is.na(trms$learning_communities_reside) == TRUE, 
+         0, 
+         1))
+```
+
+```{r}
+# Convert term codes into midfield term codes
+trms$term <- ifelse(str_detect(as.character(trms$term / 10), "1$"), 
+                    as.character(trms$term / 10), 
+                    as.character(trms$term / 10 + 1))
+trms$term <- as.integer(trms$term)
+```
+
+```{r}
+renv::snapshot()
+```

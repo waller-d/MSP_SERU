@@ -1,0 +1,117 @@
+---
+title: "Cleaning courses table"
+subtitle: "Subtitle"
+author: "David Waller"
+date: "`r format(Sys.time(), '%Y %B %d')`"
+output:
+  pdf_document:
+    toc: yes
+    number_sections: true
+    toc_depth: 5
+editor_options:
+  chunk_output_type: console
+---
+
+# Header 1
+## Header 2
+### Header 3
+
+Regular text
+
+```{r echo=TRUE, results='hide', message=FALSE}
+options(width = 80) # Set width
+#rm(list=ls())      # Remove objects from the environment
+cat("\014")         # Clear console
+#renv::init()       # Initialize a project-local library
+#workflowr::wflow_start("project_name") # Create project_name data structure
+```
+
+```{r}
+renv::restore()
+
+library(knitr)      # for knitting Rmd files
+library(questionr)  # for working with survey data
+library(tidyverse)  # for data cleaning and plotting
+library(broom)      # for nice statistical output
+library(here)       # for easy file paths
+library(labelled)   # for working with variable labels/values
+library(naniar)     # for working with missing data
+library(assertive)  # for data validation
+library(desctable)  # for creating tables of descriptive statistics
+
+renv::snapshot()
+```
+
+```{r}
+set.seed(12345)        # Set the seed
+getwd()                # Check the working directory
+#setwd("~/Active/...")  # Set the working directory
+```
+
+```{r}
+# Rename columns
+colnames(courses) <- c("mcid",
+                       "term_course",
+                       "term_label",
+                       "semester_course",
+                       "course_id",
+                       "section",
+                       "grade",
+                       "course_subject_label",
+                       "number",
+                       "hours_course",
+                       "college_course",
+                       "department_course",
+                       "repeat_course_ind",
+                       "type",
+                       "transfer_course_ind",
+                       "si_attended_flag",
+                       "si_count",
+                       "si_course" )
+```
+
+```{r}
+# Convert categorical variables into factors
+term_label_l <- c("Fall 2008", "Spring 2009", "Summer 2009", 
+                  "Fall 2009", "Spring 2010", "Summer 2010",
+                  "Fall 2010", "Spring 2011", "Summer 2011", 
+                  "Fall 2011", "Spring 2012", "Summer 2012",
+                  "Fall 2012", "Spring 2013", "Summer 2013", 
+                  "Fall 2013", "Spring 2014", "Summer 2014",
+                  "Fall 2014", "Spring 2015", "Summer 2015", 
+                  "Fall 2015", "Spring 2016", "Summer 2016",
+                  "Fall 2016", "Spring 2017", "Summer 2017", 
+                  "Fall 2017", "Spring 2018", "Summer 2018",
+                  "Fall 2018", "Spring 2019", "Summer 2019", 
+                  "Fall 2019", "Spring 2020")
+semester_l <- c("Fall", "Spring", "Summer")
+
+courses$term_label <- factor(courses$term_label, 
+                             levels = term_label_l, 
+                             ordered = TRUE)
+courses$semester_course <- factor(courses$semester_course, 
+                                  levels = semester_l, 
+                                  ordered = FALSE)
+```
+
+```{r}
+# Split course_id string into abbrev and number columns
+courses <- courses %>% 
+  select(-number) %>% 
+  separate(course_id, 
+           into = c("abbrev", "number"),
+           sep = "(?<=[A-Za-z])(?=[0-9])")
+```
+
+```{r}
+# Convert term codes into midfield term codes
+courses$term_course <- ifelse(str_detect(as.character(courses$term_course / 10), 
+                                         "1$"), 
+                              as.character(courses$term_course / 10), 
+                              as.character(courses$term_course / 10 + 1))
+courses$term_course <- as.integer(courses$term_course)
+```
+
+```{r}
+renv::snapshot()
+```
