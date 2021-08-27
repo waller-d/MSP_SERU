@@ -87,6 +87,8 @@ student_term_vars <- dbGetQuery(con, "SELECT hashed_id,
 highschool <- dbGetQuery(con, "SELECT * FROM highschool")
 
 grad <- dbGetQuery(con, "SELECT * FROM graduation")
+
+SERU <- dbGetQuery(con, "SELECT * FROM SERU")
 ```
 
 ```{r}
