@@ -1,0 +1,130 @@
+---
+title: "Cleaning graduation table"
+subtitle: "Subtitle"
+author: "David Waller"
+date: "`r format(Sys.time(), '%Y %B %d')`"
+output:
+  pdf_document:
+    toc: yes
+    number_sections: true
+    toc_depth: 5
+editor_options:
+  chunk_output_type: console
+---
+
+```{r echo=TRUE, results='hide', message=FALSE}
+options(width = 80) # Set width
+#rm(list=ls())      # Remove objects from the environment
+cat("\014")         # Clear console
+#renv::init()       # Initialize a project-local library
+#workflowr::wflow_start("project_name") # Create project_name data structure
+```
+
+```{r}
+renv::restore()
+
+library(knitr)      # for knitting Rmd files
+library(questionr)  # for working with survey data
+library(tidyverse)  # for data cleaning and plotting
+library(broom)      # for nice statistical output
+library(here)       # for easy file paths
+library(labelled)   # for working with variable labels/values
+library(naniar)     # for working with missing data
+library(assertive)  # for data validation
+library(desctable)  # for creating tables of descriptive statistics
+
+renv::snapshot()
+```
+
+```{r}
+set.seed(12345)        # Set the seed
+getwd()                # Check the working directory
+#setwd("~/Active/...")  # Set the working directory
+```
+
+```{r}
+# Function to remove non-alphabetic characters at the end of a string
+remove.nonalpha <- function(v){
+  v <- gsub("_[^_]+$", "", v)
+  return(v)
+}
+```
+
+
+```{r}
+# Convert graduation year data into long format and remove non-alphabetic characters
+graduation_year <- grad %>% 
+  select(id, associate_1_grad, bach_1_grad, bach_2_grad, bach_3_grad) %>% 
+  gather(deg_type, year_grad, associate_1_grad:bach_3_grad)
+graduation_year$deg_type <- gsub("_[^_]+$", "", graduation_year$deg_type)
+graduation_year$year_grad <- replace.nulls(graduation_year$year_grad)
+
+# Filter for students who earned a degree
+graduation_year <- graduation_year %>% 
+  filter(!is.na(year_grad))
+```
+
+```{r}
+# Convert graduation cip data into long format and remove non-alphabetic characters
+graduation_cip <- grad %>% 
+  select(id, associate_1_cip_1, bach_1_cip_1, bach_1_cip_2, bach_1_cip_3, bach_1_cip_4,
+         bach_2_cip_1, bach_2_cip_2, bach_3_cip_1) %>% 
+  gather(deg_type, cip_grad, associate_1_cip_1:bach_3_cip_1)
+graduation_cip$deg_type <- gsub("_[^_]+$", "", graduation_cip$deg_type)
+graduation_cip$deg_type <- gsub("_[^_]+$", "", graduation_cip$deg_type)
+graduation_cip$cip_grad <- replace.nulls(graduation_cip$cip_grad)
+```
+
+```{r}
+# Convert graduation GPA data into long format and remove non-alphabetic characters
+graduation_gpa <- grad %>% 
+  select(id, associate_1_overall_gpa, bach_1_overall_gpa, bach_2_overall_gpa, 
+         bach_3_overall_gpa) %>% 
+  gather(deg_type, gpa_grad, associate_1_overall_gpa:bach_3_overall_gpa)
+graduation_gpa$deg_type <- gsub("_[^_]+$", "", graduation_gpa$deg_type)
+graduation_gpa$deg_type <- gsub("_[^_]+$", "", graduation_gpa$deg_type)
+graduation_gpa$deg_type <- gsub("_[^_]+$", "", graduation_gpa$deg_type)
+graduation_gpa$deg_type <- gsub("_[^_]+$", "", graduation_gpa$deg_type)
+graduation_gpa$gpa_grad <- replace.nulls(graduation_gpa$gpa_grad)
+```
+
+```{r}
+# Convert graduation credits data into long format and remove non-alphabetic characters
+graduation_credits <- grad %>% 
+  select(id, associate_1_overall_credits_earned, bach_1_overall_credits_earned,
+         bach_2_overall_credits_earned, bach_3_overall_credits_earned) %>% 
+  gather(deg_type, credits_grad, associate_1_overall_credits_earned:bach_3_overall_credits_earned)
+graduation_credits$deg_type <- gsub("_[^_]+$", "", graduation_credits$deg_type)
+graduation_credits$deg_type <- gsub("_[^_]+$", "", graduation_credits$deg_type)
+graduation_credits$deg_type <- gsub("_[^_]+$", "", graduation_credits$deg_type)
+graduation_credits$credits_grad <- replace.nulls(graduation_credits$credits_grad)
+```
+
+```{r}
+# Combine graduation data into one long form table
+graduation_all <- cbind(graduation_year, graduation_gpa$gpa_grad, graduation_credits$credits_grad)
+grads <- graduation_all %>% 
+  left_join(graduation_cip, by = c("id", "deg_type")) %>% 
+  filter(!is.na(cip_grad))
+
+# Remove graduation years that are beyond the scope of the data
+grads$year_grad_n <- as.numeric(grads$year_grad)
+grads <- grads %>% 
+  filter(year_grad_n < 201930)
+
+# Rename columns
+colnames(grads) <- c("mcid",
+                     "deg_type",
+                     "year_grad",
+                     "gpa_grad",
+                     "credits_grad",
+                     "cip_grad",
+                     "year_grad_n")
+
+rm(grad, graduation_all, graduation_cip, 
+   graduation_credits, graduation_gpa, graduation_year)
+```
+
+```{r}
+renv::snapshot()
+```
